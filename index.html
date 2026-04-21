@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IronFlow — 6-Day Workout Tracker</title>
+    <meta name="description" content="Track your Push/Pull/Legs 6-day split workout plan with IronFlow. Log sets, reps, and monitor weekly progress.">
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="IronFlow">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Ambient background blobs -->
+    <div class="bg-blob blob-1"></div>
+    <div class="bg-blob blob-2"></div>
+    <div class="bg-blob blob-3"></div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header" id="app-header">
+            <div class="header-left">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="2" y="16" width="36" height="8" rx="4" fill="url(#grad1)"/>
+                        <rect x="8" y="10" width="6" height="20" rx="3" fill="url(#grad1)"/>
+                        <rect x="26" y="10" width="6" height="20" rx="3" fill="url(#grad1)"/>
+                        <rect x="4" y="12" width="4" height="16" rx="2" fill="url(#grad2)"/>
+                        <rect x="32" y="12" width="4" height="16" rx="2" fill="url(#grad2)"/>
+                        <defs>
+                            <linearGradient id="grad1" x1="0" y1="0" x2="40" y2="40">
+                                <stop stop-color="#a78bfa"/><stop offset="1" stop-color="#6d28d9"/>
+                            </linearGradient>
+                            <linearGradient id="grad2" x1="0" y1="0" x2="40" y2="40">
+                                <stop stop-color="#c084fc"/><stop offset="1" stop-color="#7c3aed"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <h1 class="logo-text">Iron<span>Flow</span></h1>
+                </div>
+                <p class="header-subtitle">Push · Pull · Legs — 6 Day Split</p>
+            </div>
+            <div class="header-right">
+                <div class="streak-badge" id="streak-badge" title="Current streak">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/></svg>
+                    <span id="streak-count">0</span> day streak
+                </div>
+                <button class="btn-reset" id="btn-reset-week" title="Reset this week's progress">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" fill="currentColor"/></svg>
+                    Reset Week
+                </button>
+            </div>
+        </header>
+
+        <!-- Week Navigation -->
+        <div class="week-nav" id="week-nav">
+            <button class="week-nav-btn" id="btn-prev-week">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="currentColor"/></svg>
+            </button>
+            <h2 class="week-label" id="week-label">This Week</h2>
+            <button class="week-nav-btn" id="btn-next-week">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" fill="currentColor"/></svg>
+            </button>
+        </div>
+
+        <!-- Day Tabs -->
+        <div class="day-tabs" id="day-tabs">
+            <button class="day-tab active" data-day="0" id="tab-monday">
+                <span class="tab-day-name">Mon</span>
+                <span class="tab-workout-type push">PUSH</span>
+                <span class="tab-progress" id="prog-0">0%</span>
+            </button>
+            <button class="day-tab" data-day="1" id="tab-tuesday">
+                <span class="tab-day-name">Tue</span>
+                <span class="tab-workout-type legs">LEGS</span>
+                <span class="tab-progress" id="prog-1">0%</span>
+            </button>
+            <button class="day-tab" data-day="2" id="tab-wednesday">
+                <span class="tab-day-name">Wed</span>
+                <span class="tab-workout-type pull">PULL</span>
+                <span class="tab-progress" id="prog-2">0%</span>
+            </button>
+            <button class="day-tab" data-day="3" id="tab-thursday">
+                <span class="tab-day-name">Thu</span>
+                <span class="tab-workout-type push">PUSH</span>
+                <span class="tab-progress" id="prog-3">0%</span>
+            </button>
+            <button class="day-tab" data-day="4" id="tab-friday">
+                <span class="tab-day-name">Fri</span>
+                <span class="tab-workout-type legs">LEGS</span>
+                <span class="tab-progress" id="prog-4">0%</span>
+            </button>
+            <button class="day-tab" data-day="5" id="tab-saturday">
+                <span class="tab-day-name">Sat</span>
+                <span class="tab-workout-type pull">PULL</span>
+                <span class="tab-progress" id="prog-5">0%</span>
+            </button>
+            <button class="day-tab rest-tab" data-day="6" id="tab-sunday">
+                <span class="tab-day-name">Sun</span>
+                <span class="tab-workout-type rest">REST</span>
+                <span class="tab-progress" id="prog-6">😴</span>
+            </button>
+        </div>
+
+        <!-- Main Content -->
+        <main class="main-content" id="main-content">
+            <!-- Workout cards rendered by JS -->
+        </main>
+
+        <!-- Weekly Stats Bar -->
+        <div class="stats-bar" id="stats-bar">
+            <div class="stat-item">
+                <span class="stat-value" id="stat-completed">0</span>
+                <span class="stat-label">Sets Done</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-value" id="stat-total">0</span>
+                <span class="stat-label">Total Sets</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-value" id="stat-percent">0%</span>
+                <span class="stat-label">Weekly Progress</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+                <span class="stat-value" id="stat-days">0/6</span>
+                <span class="stat-label">Days Completed</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast"></div>
+
+    <script src="app.js"></script>
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registered:', reg.scope))
+                    .catch(err => console.log('SW registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>
