@@ -109,10 +109,15 @@
             </button>
         </div>
 
-        <!-- Main Content -->
+        <!-- Main Content (Workout View) -->
         <main class="main-content" id="main-content">
             <!-- Workout cards rendered by JS -->
         </main>
+
+        <!-- History View -->
+        <div class="history-view hidden" id="history-view">
+            <!-- Rendered by JS -->
+        </div>
 
         <!-- Weekly Stats Bar -->
         <div class="stats-bar" id="stats-bar">
@@ -137,6 +142,24 @@
             </div>
         </div>
     </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav" id="bottom-nav">
+        <button class="nav-item active" id="nav-workout" data-view="workout">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <rect x="1" y="10" width="22" height="4" rx="2" fill="currentColor" opacity="0.6"/>
+                <rect x="4" y="6" width="4" height="12" rx="1.5" fill="currentColor"/>
+                <rect x="16" y="6" width="4" height="12" rx="1.5" fill="currentColor"/>
+            </svg>
+            <span>Workout</span>
+        </button>
+        <button class="nav-item" id="nav-history" data-view="history">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M13 3a9 9 0 00-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0013 21a9 9 0 000-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" fill="currentColor"/>
+            </svg>
+            <span>History</span>
+        </button>
+    </nav>
 
     <!-- Toast notification -->
     <div class="toast" id="toast"></div>

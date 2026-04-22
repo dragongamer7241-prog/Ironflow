@@ -267,6 +267,7 @@ const WORKOUT_PLAN = [
 // ─── State ──────────────────────────────────────────────────
 let currentDay = 0;
 let weekOffset = 0; // 0 = current week
+let currentView = 'workout'; // 'workout' or 'history'
 let state = {}; // { "2026-W17": { 0: { 0: [true, false, ...], 1: [...] }, ... } }
 
 // ─── Utility Functions ──────────────────────────────────────
@@ -659,6 +660,288 @@ function handleWeightChange(dayIdx, exIdx, value) {
     }
 }
 
+// ─── History View ───────────────────────────────────────────
+
+function getWeeksWithData() {
+    // Collect all weeks that have any data (sets or weights)
+    const weeks = new Set();
+
+    // From set completion state
+    Object.keys(state).forEach(k => {
+        if (k.match(/^\d{4}-W\d{2}$/)) weeks.add(k);
+    });
+
+    // From weights — keys are like "2026-W17_0_2"
+    const weights = loadWeights();
+    Object.keys(weights).forEach(k => {
+        const match = k.match(/^(\d{4}-W\d{2})_/);
+        if (match) weeks.add(match[1]);
+    });
+
+    // Always include current week
+    weeks.add(getWeekKey(0));
+
+    // Filter: only keep weeks with actual data (completed sets or weights logged)
+    const filtered = Array.from(weeks).filter(weekKey => {
+        // Check if any sets completed
+        const ws = state[weekKey];
+        if (ws) {
+            for (const dayIdx of Object.keys(ws)) {
+                for (const exIdx of Object.keys(ws[dayIdx])) {
+                    for (const setIdx of Object.keys(ws[dayIdx][exIdx])) {
+                        if (ws[dayIdx][exIdx][setIdx]) return true;
+                    }
+                }
+            }
+        }
+        // Check if any weights logged for this week
+        for (const wk of Object.keys(weights)) {
+            if (wk.startsWith(weekKey + '_') && weights[wk] !== '' && weights[wk] !== null && !isNaN(weights[wk]) && parseFloat(weights[wk]) > 0) return true;
+        }
+        // Always show current week
+        if (weekKey === getWeekKey(0)) return true;
+        return false;
+    });
+
+    // Sort descending (newest first)
+    return filtered.sort().reverse();
+}
+
+function getWeekDatesForKey(weekKey) {
+    // Parse "2026-W17" -> find the Monday of that week
+    const match = weekKey.match(/(\d{4})-W(\d{2})/);
+    if (!match) return null;
+    const year = parseInt(match[1]);
+    const week = parseInt(match[2]);
+
+    // Jan 4 is always in week 1
+    const jan4 = new Date(year, 0, 4);
+    const dayOfWeek = jan4.getDay() || 7; // 1=Mon, 7=Sun
+    const monday = new Date(jan4);
+    monday.setDate(jan4.getDate() - dayOfWeek + 1 + (week - 1) * 7);
+
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        dates.push(d);
+    }
+    return dates;
+}
+
+function getWeekProgressForKey(weekKey) {
+    let done = 0, total = 0, daysComplete = 0;
+    for (let i = 0; i < 6; i++) {
+        const workout = WORKOUT_PLAN[i];
+        if (workout.type === 'REST') continue;
+        let dayDone = 0, dayTotal = 0;
+        workout.exercises.forEach((ex, exIdx) => {
+            if (ex.optional && ex.sets.length === 0) return;
+            ex.sets.forEach((_, setIdx) => {
+                dayTotal++;
+                total++;
+                const ws = state[weekKey];
+                if (ws?.[i]?.[exIdx]?.[setIdx]) {
+                    dayDone++;
+                    done++;
+                }
+            });
+        });
+        if (dayTotal > 0 && dayDone === dayTotal) daysComplete++;
+    }
+    return { done, total, percent: total > 0 ? Math.round((done / total) * 100) : 0, daysComplete };
+}
+
+function getDayProgressForKey(weekKey, dayIdx) {
+    const workout = WORKOUT_PLAN[dayIdx];
+    if (workout.type === 'REST') return { done: 0, total: 0, percent: 100 };
+    let done = 0, total = 0;
+    workout.exercises.forEach((ex, exIdx) => {
+        if (ex.optional && ex.sets.length === 0) return;
+        ex.sets.forEach((_, setIdx) => {
+            total++;
+            const ws = state[weekKey];
+            if (ws?.[dayIdx]?.[exIdx]?.[setIdx]) done++;
+        });
+    });
+    return { done, total, percent: total > 0 ? Math.round((done / total) * 100) : 0 };
+}
+
+function renderHistory() {
+    const container = document.getElementById('history-view');
+    const weeks = getWeeksWithData();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dayShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const currentWeekKey = getWeekKey(0);
+
+    // Check if there's any real data
+    const hasData = weeks.some(wk => {
+        const wp = getWeekProgressForKey(wk);
+        return wp.done > 0;
+    });
+
+    if (!hasData) {
+        container.innerHTML = `
+            <div class="history-empty">
+                <div class="history-empty-emoji">📊</div>
+                <div class="history-empty-text">
+                    No workout history yet.<br>
+                    Complete your first workout and it will appear here!
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    let html = `
+        <h2 class="history-section-title">Workout History</h2>
+        <p class="history-section-sub">Your progress across weeks — tap a week to see details</p>
+    `;
+
+    weeks.forEach((weekKey, wi) => {
+        const wp = getWeekProgressForKey(weekKey);
+        const dates = getWeekDatesForKey(weekKey);
+        if (!dates) return;
+
+        const isCurrentWeek = weekKey === currentWeekKey;
+        const percentClass = wp.percent >= 80 ? 'high' : wp.percent >= 40 ? 'mid' : 'low';
+        const weekLabel = isCurrentWeek ? 'This Week' : `Week ${weekKey.split('-W')[1]}`;
+        const dateRange = `${months[dates[0].getMonth()]} ${dates[0].getDate()} — ${months[dates[6].getMonth()]} ${dates[6].getDate()}, ${dates[0].getFullYear()}`;
+
+        // Build day rows
+        let dayRowsHtml = '';
+        for (let d = 0; d < 6; d++) {
+            const dp = getDayProgressForKey(weekKey, d);
+            const workout = WORKOUT_PLAN[d];
+            dayRowsHtml += `
+                <div class="history-day-row">
+                    <span class="history-day-name">${dayShort[d]}</span>
+                    <span class="history-day-type ${workout.accent}">${workout.type}</span>
+                    <div class="history-day-bar">
+                        <div class="history-day-fill ${workout.accent}" style="width: ${dp.percent}%"></div>
+                    </div>
+                    <span class="history-day-percent">${dp.percent}%</span>
+                </div>
+            `;
+        }
+
+        // Build exercise weight history
+        let exerciseHtml = '';
+        const weights = loadWeights();
+        const allExercises = new Set();
+
+        // Gather all exercises with weights for this week
+        for (let d = 0; d < 6; d++) {
+            const workout = WORKOUT_PLAN[d];
+            workout.exercises.forEach((ex, exIdx) => {
+                if (ex.optional && ex.sets.length === 0) return;
+                const wKey = `${weekKey}_${d}_${exIdx}`;
+                const w = weights[wKey];
+                if (w !== undefined && w !== '' && w !== null) {
+                    const exKey = `${d}_${exIdx}`;
+                    if (!allExercises.has(ex.name + '_' + d)) {
+                        allExercises.add(ex.name + '_' + d);
+
+                        // Find previous weight for delta
+                        let prevW = null;
+                        for (let pw = 1; pw <= 12; pw++) {
+                            // Find previous week key
+                            const allWeeksSorted = weeks.filter(k => k < weekKey).sort().reverse();
+                            if (allWeeksSorted[pw - 1]) {
+                                const prevKey = `${allWeeksSorted[pw - 1]}_${d}_${exIdx}`;
+                                if (weights[prevKey] !== undefined && weights[prevKey] !== '') {
+                                    prevW = weights[prevKey];
+                                    break;
+                                }
+                            }
+                        }
+
+                        let deltaHtml = '';
+                        if (prevW !== null) {
+                            const diff = w - prevW;
+                            if (diff > 0) deltaHtml = `<span class="history-ex-delta up">▲ +${diff}</span>`;
+                            else if (diff < 0) deltaHtml = `<span class="history-ex-delta down">▼ ${diff}</span>`;
+                            else deltaHtml = `<span class="history-ex-delta same">=</span>`;
+                        }
+
+                        // Count completed sets
+                        const dp = getDayProgressForKey(weekKey, d);
+                        const setsDone = ex.sets.filter((_, si) => state[weekKey]?.[d]?.[exIdx]?.[si]).length;
+
+                        exerciseHtml += `
+                            <div class="history-ex-row">
+                                <span class="history-ex-name">${ex.name}</span>
+                                <span class="history-ex-weight">${w} kg</span>
+                                ${deltaHtml}
+                                <span class="history-ex-sets">${setsDone}/${ex.sets.length}</span>
+                            </div>
+                        `;
+                    }
+                }
+            });
+        }
+
+        html += `
+            <div class="history-week-card" id="history-week-${wi}" style="animation-delay: ${wi * 0.05}s">
+                <div class="history-week-header" onclick="toggleHistoryWeek(${wi})">
+                    <div class="history-week-left">
+                        <div class="history-week-label">${weekLabel}</div>
+                        <div class="history-week-dates">${dateRange}</div>
+                    </div>
+                    <div class="history-week-right">
+                        <span class="history-week-percent ${percentClass}">${wp.percent}%</span>
+                        <svg class="history-expand-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" fill="currentColor"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="history-mini-bar">
+                    <div class="history-mini-fill ${percentClass}" style="width: ${wp.percent}%"></div>
+                </div>
+                <div class="history-week-details">
+                    ${dayRowsHtml}
+                    ${exerciseHtml ? `<div class="history-exercises">${exerciseHtml}</div>` : ''}
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function toggleHistoryWeek(idx) {
+    const card = document.getElementById(`history-week-${idx}`);
+    if (card) card.classList.toggle('expanded');
+}
+
+function switchView(view) {
+    currentView = view;
+
+    const workoutEls = ['main-content', 'day-tabs', 'week-nav'];
+    const historyEl = document.getElementById('history-view');
+    const statsBar = document.getElementById('stats-bar');
+    const resetBtn = document.getElementById('btn-reset-week');
+
+    // Update nav buttons
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === view);
+    });
+
+    if (view === 'workout') {
+        workoutEls.forEach(id => document.getElementById(id).classList.remove('hidden'));
+        historyEl.classList.add('hidden');
+        statsBar.classList.remove('hidden');
+        resetBtn.style.display = '';
+        renderAll();
+    } else {
+        workoutEls.forEach(id => document.getElementById(id).classList.add('hidden'));
+        historyEl.classList.remove('hidden');
+        statsBar.classList.add('hidden');
+        resetBtn.style.display = 'none';
+        renderHistory();
+    }
+}
+
 function handleSetClick(dayIdx, exIdx, setIdx) {
     const weekKey = getWeekKey(weekOffset);
     toggleSet(weekKey, dayIdx, exIdx, setIdx);
@@ -816,6 +1099,13 @@ function init() {
     });
 
     renderAll();
+
+    // Bottom nav handlers
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            switchView(btn.dataset.view);
+        });
+    });
 }
 
 document.addEventListener('DOMContentLoaded', init);
