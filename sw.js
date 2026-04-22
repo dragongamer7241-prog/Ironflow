@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ironflow-v1';
+const CACHE_NAME = 'ironflow-v2';
 const ASSETS = [
     './',
     './index.html',
